@@ -5,7 +5,7 @@ def stepping_stones(n, ones):
 
     # Process below is sort of redundant as it goes through EVERY cell 
     # and not just ones affected by change but its 1:43 AM right now and
-    # I'm barely functioninpig.
+    # I'm barely functioning.
     def neighbour_sum(board):
         """Checks each cell on the board for its sum by neighbours"""
         sums = {} # The sums here is a dictionary of keys according to the sum and the value being sets of positions
@@ -39,3 +39,4 @@ def stepping_stones(n, ones):
     
     recursive_placing(2, initial_board)
     return max(highest)
+
