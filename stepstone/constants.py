@@ -2,6 +2,8 @@ import pygame
 pygame.font.init()
 
 SCREEN_SIZE = (1280, 800)
+FPS = 60
+
 MENU_HEIGHT = 0
 MENU_SIZE = (SCREEN_SIZE[0], MENU_HEIGHT)
 CTRLBAR_SIZE = 80

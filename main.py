@@ -1,15 +1,18 @@
-import ctypes
 import pygame
 import sys
+import ctypes
+import threading
+
 
 from gui.hud import Hud, Button
 from stepstone.board import Board
-from stepstone.constants import SCREEN_SIZE, BACKGROUND_COLOUR, MARGIN
+from stepstone.constants import FPS, SCREEN_SIZE, BACKGROUND_COLOUR, MARGIN
 
 pygame.init()
 ctypes.windll.user32.SetProcessDPIAware()
-screen = pygame.display.set_mode(SCREEN_SIZE)
 pygame.display.set_caption("Stepping Stones")
+screen = pygame.display.set_mode(SCREEN_SIZE)
+clock = pygame.time.Clock()
 
 
 def board_mouse_pos(act_pos, board):
@@ -20,11 +23,14 @@ def board_mouse_pos(act_pos, board):
 
 
 def main():
-    board = Board(6)
+    board = Board()
     hud = Hud(board)
     ctrl_buttons = [Button(hud, "Set", "top", 3), Button(hud, "reset", "bottom", 0), Button(hud, "undo", "bottom", 1), Button(hud, "redo", "bottom", 2), Button(hud, "solve", "bottom", 3)]
+    movesets_gen = None
+
 
     while True:
+        clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT: sys.exit()
 
@@ -45,8 +51,9 @@ def main():
                                 if board.num == 1 and len(board.saved_states) > 1: 
                                     board.num = 2
                                     button.activated = False
+                                    threading.Thread(target=board.solve).start()
                             case "reset":
-                                board = Board(6)
+                                board = Board()
                                 ctrl_buttons[0].activated = True
                                 break
                             case "undo":
@@ -59,14 +66,24 @@ def main():
                                 break
                             case "solve":
                                 if board.num > 1: 
-                                    board.solve()
                                     ctrl_buttons[0].activated = False
+                                    threading.Thread(target=board.solve).start()
+                                    print(board.solved_movesets)
                                 break
 
                 if board.rect.collidepoint(mouse_pos):
                     if mouse_pressed[0]:
                         board_pos = board_mouse_pos(mouse_pos, board)
                         board.place_stone(board_pos)
+
+        if board.solved_movesets: 
+            movesets_gen = board.play_frame(board.solved_movesets)
+            board.solved_movesets = None
+        if movesets_gen: 
+            try:
+                board.place_stone(next(movesets_gen))
+            except StopIteration:
+                pass
 
         screen.fill(BACKGROUND_COLOUR)
         board.draw(screen)

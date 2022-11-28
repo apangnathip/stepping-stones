@@ -55,7 +55,10 @@ class Hud():
         pygame.draw.rect(screen, HUD_COLOUR, (self.x_pos, MARGIN, self.width, self.height))
 
         pygame.draw.rect(screen, CTRLBAR_COLOUR, (self.x_pos, MARGIN, self.width, CTRLBAR_SIZE))
-        info_text = HUD_FONT.render(f"Placing {board.num}'s Stones...", True, HUD_FONT_COLOUR)
+        if board.highest and board.num > board.highest: 
+            info = f"You've achieved the optimal stone configuration!"
+        else: info = f"Placing {board.num}'s stone..."
+        info_text = HUD_FONT.render(info, True, HUD_FONT_COLOUR)
         info_rect = info_text.get_rect()
         screen.blit(info_text, (self.x_pos + self.hud_margin*2, MARGIN + self.hud_margin + info_rect.height/2, info_rect.width, info_rect.height))
 

@@ -4,7 +4,7 @@ from .constants import *
 
 
 class Board:
-    def __init__(self, size=6):
+    def __init__(self, size=8):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
@@ -13,16 +13,17 @@ class Board:
         self.sum_board = [[0] * self.size for _ in range(self.size)]
         self.stone_size = self.cell_size // 2
         self.num = 1
-        self.highest = []
         self.saved_states = [[[0] * self.size for _ in range(self.size)]]
         self.rect = pygame.Rect(MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size)
+
+        self.highest = None
+        self.solved_movesets = None
 
     def traverse(self, mode):
         try:
             curr_state = self.saved_states.index(self.board)
         except ValueError:
             return
-
         if mode == "undo": 
             if curr_state == 0: return
             if self.num != 1: self.num -= 1
@@ -31,8 +32,6 @@ class Board:
             if curr_state == len(self.saved_states) - 1: return
             self.num += 1
             operation = 1
-
-        # if mode == "undo" and curr_state != 0 or mode == "redo" and curr_state != len(self.saved_states) - 1:
         self.board = self.saved_states[curr_state + operation]
 
     def neighbour_sum(self, ov_board=None):
@@ -99,8 +98,18 @@ class Board:
 
             self.saved_states.append(deepcopy(self.board))
 
-    def play(self, move_set):
-        for move in move_set:
+    def play_frame(self, movesets):
+        saved = ()
+        for moveset in movesets:
+            if moveset != movesets[-1]: 
+                saved = (deepcopy(self.board), self.num)
+            else: saved = ()
+            for move in moveset:
+                yield move
+            if saved: self.board, self.num = saved
+
+    def play_all(self, moveset):
+        for move in moveset:
             self.place_stone(move)
   
     def solve(self):
@@ -109,7 +118,7 @@ class Board:
         num = self.num
         num_reached = [0]
 
-        def recursive_placing(curr_num, curr_board, moves):
+        def auto_place(curr_num, curr_board, moves):
             sums = self.neighbour_sum(curr_board)
             if curr_num not in sums:
                 if curr_num - 1 > num_reached[0]:
@@ -122,10 +131,11 @@ class Board:
                 next_board[pos[0]][pos[1]] = curr_num
                 next_moves = moves[:]
                 next_moves.append(pos)
-                recursive_placing(curr_num + 1, next_board, next_moves)
+                auto_place(curr_num + 1, next_board, next_moves)
 
-        recursive_placing(num, board, [])
-        self.play(best_moves[-1])
+        auto_place(num, board, [])
+        self.highest = max(num_reached)
+        self.solved_movesets = best_moves
     
     def draw_board(self, screen):
         screen.fill(BOARD_COLOUR_ONE, (MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size))
