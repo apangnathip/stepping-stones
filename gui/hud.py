@@ -12,7 +12,7 @@ def display_text(screen, bound, margin, text, font, colour=(255,255,255)):
     for word in words:
         word_surf = font.render(word, True, colour)
         word_width, word_height = word_surf.get_size()
-        if x + word_width >= bound.width:
+        if x + word_width >= bound.width - margin:
             x = pos[0]
             y += word_height
             adjusted_height -= word_height/2
@@ -79,7 +79,7 @@ class Hud():
         if board.solving == "loud":
             info = "Finding optimal solution..."
         elif board.highest and board.num > board.highest: 
-            info = "The optimal configuration has been achieved!"
+            info = f"The highest possible stone of degree {board.highest} has been achieved!"
         else: 
             info = f"Placing {board.num}'s stone..."
         display_text(screen, info_bar, self.hud_margin*2, info, HUD_FONT)

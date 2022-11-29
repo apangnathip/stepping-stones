@@ -3,18 +3,20 @@ from .constants import *
 
 
 class Board:
-    def __init__(self, size=12):
+    def __init__(self, size=8):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
 
+        self.rect = pygame.Rect(MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size)
         self.board = [[0] * self.size for _ in range(self.size)]
         self.sum_board = [[0] * self.size for _ in range(self.size)]
-        self.stone_size = self.cell_size // 2
+        self.stone_margin = self.cell_size // 12
+        self.stone_size = self.cell_size // 2 - self.stone_margin
+        self.stone_font = pygame.font.SysFont("Consolas", self.cell_size // 2)
         self.num = 1
+        
         self.saved_states = [[[0] * self.size for _ in range(self.size)]]
-        self.rect = pygame.Rect(MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size)
-
         self.highest = None
         self.solving = False
         self.solved_movesets = None
@@ -182,18 +184,16 @@ class Board:
         for row in range(self.size):
             for col in range(self.size):
                 if self.board[row][col] != 0:
-                    centre_pos = (row * self.cell_size + self.stone_size + MENU_SIZE[1] + MARGIN,
-                                  col * self.cell_size + self.stone_size + MARGIN)
+                    centre_pos = (col * self.cell_size + self.stone_size + self.stone_margin + MARGIN,
+                    row * self.cell_size + self.stone_size + self.stone_margin + MENU_SIZE[1] + MARGIN)
 
                     if self.board[row][col] == 1:
-                        gfxdraw.aacircle(screen, centre_pos[1], centre_pos[0], self.stone_size - 10, ONES_STONE_COLOUR)
-                        gfxdraw.filled_circle(screen, centre_pos[1], centre_pos[0], self.stone_size - 10, ONES_STONE_COLOUR)
+                        gfxdraw.aacircle(screen, centre_pos[0], centre_pos[1], self.stone_size, ONES_STONE_COLOUR)
+                        gfxdraw.filled_circle(screen, centre_pos[0], centre_pos[1], self.stone_size, ONES_STONE_COLOUR)
                     else:
-                        gfxdraw.aacircle(screen, centre_pos[1], centre_pos[0], self.stone_size - 10, STONE_COLOUR)
-                        gfxdraw.filled_circle(screen, centre_pos[1], centre_pos[0], self.stone_size - 10, STONE_COLOUR)
+                        gfxdraw.aacircle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
+                        gfxdraw.filled_circle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
 
-                        number = STONE_FONT.render(f"{self.board[row][col]}", True, (0, 0, 0))
-                        rect = number.get_rect()
-                        rect.centery, rect.centerx = centre_pos
-                        screen.blit(number, rect)
+                        number = self.stone_font.render(f"{self.board[row][col]}", True, (0, 0, 0))
+                        screen.blit(number, (centre_pos[0] - number.get_width()/2, centre_pos[1] - number.get_height()/2.5))
     
