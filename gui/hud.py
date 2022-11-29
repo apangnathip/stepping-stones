@@ -76,7 +76,7 @@ class Hud():
         info_bar = pygame.Rect(self.x_pos, MARGIN, self.width, CTRLBAR_SIZE)
         pygame.draw.rect(screen, CTRLBAR_COLOUR, info_bar)
 
-        if board.solving:
+        if board.solving == "loud":
             info = "Finding optimal solution..."
         elif board.highest and board.num > board.highest: 
             info = "The optimal configuration has been achieved!"

@@ -3,7 +3,6 @@ import sys
 import ctypes
 import threading
 
-
 from gui.hud import Hud, Button
 from stepstone.board import Board
 from stepstone.constants import FPS, SCREEN_SIZE, BACKGROUND_COLOUR, MARGIN
@@ -13,7 +12,7 @@ ctypes.windll.user32.SetProcessDPIAware()
 pygame.display.set_caption("Stepping Stones")
 screen = pygame.display.set_mode(SCREEN_SIZE)
 clock = pygame.time.Clock()
-
+    
 
 def board_mouse_pos(act_pos, board):
     x, y = act_pos
@@ -27,7 +26,6 @@ def main():
     hud = Hud(board)
     ctrl_buttons = [Button(hud, "Set", "top", 3), Button(hud, "reset", "bottom", 0), Button(hud, "undo", "bottom", 1), Button(hud, "redo", "bottom", 2), Button(hud, "solve", "bottom", 3)]
     movesets_gen = None
-
 
     while True:
         clock.tick(FPS)
@@ -49,10 +47,12 @@ def main():
                         match button.label.lower():
                             case "set":
                                 if board.num == 1 and len(board.saved_states) > 1: 
-                                    board.num = 2
                                     button.activated = False
+                                    board.num = 2
+                                    board.solving = "quiet"
                                     threading.Thread(target=board.solve).start()
                             case "reset":
+                                board.solving = False
                                 board = Board()
                                 ctrl_buttons[0].activated = True
                                 break
@@ -66,7 +66,7 @@ def main():
                                 break
                             case "solve":
                                 if board.num > 1: 
-                                    board.solving = True
+                                    board.solving = "loud"
                                     ctrl_buttons[0].activated = False
                                     threading.Thread(target=board.solve, args=("True",)).start()
                                 break
@@ -78,11 +78,10 @@ def main():
 
         if board.solved_movesets: 
             movesets_gen = board.play_frame(board.solved_movesets)
-            # movesets_gen = board.play_all(board.solved_movesets[-1])
             board.solved_movesets = None
         if movesets_gen: 
             try:
-                board.place_stone(next(movesets_gen))
+                board.place_stone(next(movesets_gen), check_neighbours=False)
             except StopIteration:
                 pass
 

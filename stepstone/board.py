@@ -110,14 +110,14 @@ class Board:
             print()
         print()
 
-    def place_stone(self, pos, num=None):
+    def place_stone(self, pos, num=None, check_neighbours=True):
         if not self.board[pos[0]][pos[1]]:
-            sums = self.neighbour_sum()
+            if check_neighbours: sums = self.neighbour_sum()
             if self.num == 1:
                 self.board[pos[0]][pos[1]] = 1
             elif num:
                 self.board[pos[0]][pos[1]] = num
-            elif self.num in sums and pos in sums[self.num]:
+            elif not check_neighbours or self.num in sums and pos in sums[self.num]:
                 curr_state = self.saved_states.index(self.board)
                 if curr_state != len(self.saved_states) - 1:
                     self.saved_states = [state[:] for state in self.saved_states][:curr_state + 1]
@@ -154,9 +154,11 @@ class Board:
                 next_moves = moves[:]
                 next_moves.append(pos)
                 next_sums = self.neighbour_sum(next_board, curr_sums, pos)
-                if curr_num + 1 in next_sums and next_sums[curr_num+1]:
+                # if not self.solving: return
+                if self.solving and curr_num + 1 in next_sums and next_sums[curr_num+1]:
                     auto_place(curr_num + 1, next_board, next_sums, next_moves)
-                elif curr_num not in num_reached:
+                    continue
+                if curr_num not in num_reached:
                     best_moves.append(next_moves)
                     num_reached.append(curr_num)
         auto_place(num, self.board, self.neighbour_sum(self.board), [])
