@@ -1,6 +1,26 @@
 import pygame
 from stepstone.constants import *
 
+
+def display_text(screen, bound, margin, text, font, colour=(255,255,255)):
+    text_surf = pygame.Surface(bound.size, pygame.SRCALPHA, 32).convert_alpha()
+    words = text.split(" ")
+    space_width, space_height = font.size(" ")
+    pos = (margin, bound.height/2 - space_height/2)
+    x, y = pos
+    adjusted_height = 0
+    for word in words:
+        word_surf = font.render(word, True, colour)
+        word_width, word_height = word_surf.get_size()
+        if x + word_width >= bound.width:
+            x = pos[0]
+            y += word_height
+            adjusted_height -= word_height/2
+        text_surf.blit(word_surf, (x, y))
+        x += word_width + space_width
+    screen.blit(text_surf, (bound.left, bound.top + adjusted_height))
+    
+
 class Button():
     def __init__(self, parent, label, align, relative_pos=0):
         self.label = label
@@ -53,14 +73,16 @@ class Hud():
 
     def draw(self, screen, board):
         pygame.draw.rect(screen, HUD_COLOUR, (self.x_pos, MARGIN, self.width, self.height))
+        info_bar = pygame.Rect(self.x_pos, MARGIN, self.width, CTRLBAR_SIZE)
+        pygame.draw.rect(screen, CTRLBAR_COLOUR, info_bar)
 
-        pygame.draw.rect(screen, CTRLBAR_COLOUR, (self.x_pos, MARGIN, self.width, CTRLBAR_SIZE))
-        if board.highest and board.num > board.highest: 
-            info = f"You've achieved the optimal stone configuration!"
-        else: info = f"Placing {board.num}'s stone..."
-        info_text = HUD_FONT.render(info, True, HUD_FONT_COLOUR)
-        info_rect = info_text.get_rect()
-        screen.blit(info_text, (self.x_pos + self.hud_margin*2, MARGIN + self.hud_margin + info_rect.height/2, info_rect.width, info_rect.height))
+        if board.solving:
+            info = "Finding optimal solution..."
+        elif board.highest and board.num > board.highest: 
+            info = "The optimal configuration has been achieved!"
+        else: 
+            info = f"Placing {board.num}'s stone..."
+        display_text(screen, info_bar, self.hud_margin*2, info, HUD_FONT)
 
         pygame.draw.rect(screen, CTRLBAR_COLOUR, (self.x_pos, self.ctrl_y_pos, self.width, CTRLBAR_SIZE))
         for button in self.buttons: 
