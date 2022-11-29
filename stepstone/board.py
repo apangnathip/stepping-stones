@@ -1,10 +1,9 @@
-from copy import deepcopy
 from pygame import gfxdraw
 from .constants import *
 
 
 class Board:
-    def __init__(self, size=8):
+    def __init__(self, size=12):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
@@ -17,6 +16,7 @@ class Board:
         self.rect = pygame.Rect(MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size)
 
         self.highest = None
+        self.solving = False
         self.solved_movesets = None
 
     def traverse(self, mode):
@@ -34,28 +34,57 @@ class Board:
             operation = 1
         self.board = self.saved_states[curr_state + operation]
 
-    def neighbour_sum(self, ov_board=None):
-        if ov_board:
-            board = ov_board
+    def neighbour_sum(self, override_board=None, prev_sums=None, c_pos=None):
+        if override_board:
+            board = override_board
         else:
             board = self.board
 
-        sums = {}
-        for row in range(self.size):
-            for col in range(self.size):
-                if board[row][col]: continue
-                sum = 0
-                for i in range(-1, 2):
-                    for j in range(-1, 2):
-                        if row + i < 0 or col + j < 0: continue
-                        try:
-                            sum += board[row + i][col + j]
-                        except IndexError:
-                            continue
-                if sum > 1:
+        if prev_sums is None:
+            sums = {}
+            for row in range(self.size):
+                for col in range(self.size):
+                    if board[row][col]: continue
+                    sum = 0
+                    for i in range(-1, 2):
+                        for j in range(-1, 2):
+                            if i == 0 and j == 0 or row+i < 0 or col+j < 0: continue
+                            try:
+                                sum += board[row + i][col + j]
+                            except IndexError:
+                                continue
                     if sum not in sums:
                         sums[sum] = set()
                     sums[sum].add((row, col))
+            return sums
+
+        row = c_pos[0]
+        col = c_pos[1]
+        board_num = board[row][col]
+        sums = {}
+        iter_sums = {}
+
+        for key, value in prev_sums.items():
+            sums[key] = value.copy()
+            iter_sums[key] = value.copy()
+        sums[board_num].remove(c_pos)
+        iter_sums[board_num].remove(c_pos)
+        iter_sums = iter_sums.items()
+
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if i == 0 and j == 0: continue
+                for key, value in iter_sums:
+                    for pos in value:
+                        if pos == (row+i, col+j):
+                            sums[key].remove(pos)
+                            new_sum = key + board_num
+                            if new_sum not in sums:
+                                sums[new_sum] = set()
+                            sums[new_sum].add(pos)                        
+                            break
+                    else: continue
+                    break            
         return sums
 
     # DEBUGGING PURPOSES
@@ -81,28 +110,26 @@ class Board:
             print()
         print()
 
-    # ! UNDO AND REDO DOES NOT WORK WHEN A CHANGE IS MADE WHEN IN A SAVED STATE
     def place_stone(self, pos, num=None):
         if not self.board[pos[0]][pos[1]]:
             sums = self.neighbour_sum()
             if self.num == 1:
                 self.board[pos[0]][pos[1]] = 1
-            if num:
+            elif num:
                 self.board[pos[0]][pos[1]] = num
             elif self.num in sums and pos in sums[self.num]:
                 curr_state = self.saved_states.index(self.board)
                 if curr_state != len(self.saved_states) - 1:
-                    self.saved_states = deepcopy(self.saved_states)[:curr_state + 1]
+                    self.saved_states = [state[:] for state in self.saved_states][:curr_state + 1]
                 self.board[pos[0]][pos[1]] = self.num
                 self.num += 1
-
-            self.saved_states.append(deepcopy(self.board))
+            self.saved_states.append([row[:] for row in self.board])
 
     def play_frame(self, movesets):
         saved = ()
         for moveset in movesets:
             if moveset != movesets[-1]: 
-                saved = (deepcopy(self.board), self.num)
+                saved = ([row[:] for row in self.board], self.num)
             else: saved = ()
             for move in moveset:
                 yield move
@@ -112,30 +139,33 @@ class Board:
         for move in moveset:
             self.place_stone(move)
   
-    def solve(self):
+    def solve(self, get_moves=False):
         best_moves = []
-        board = self.board
         num = self.num
-        num_reached = [0]
+        num_reached = []
 
-        def auto_place(curr_num, curr_board, moves):
-            sums = self.neighbour_sum(curr_board)
-            if curr_num not in sums:
-                if curr_num - 1 > num_reached[0]:
-                    num_reached.append(curr_num - 1)
-                    num_reached[0] = curr_num - 1
-                    best_moves.append(moves)
+        def auto_place(curr_num, curr_board, curr_sums, moves):
+            if curr_num not in curr_sums:
+                num_reached.append(1)
                 return
-            for pos in sums[curr_num]:
-                next_board = deepcopy(curr_board)
+            for pos in curr_sums[curr_num]:
+                next_board = [row[:] for row in curr_board]
                 next_board[pos[0]][pos[1]] = curr_num
                 next_moves = moves[:]
                 next_moves.append(pos)
-                auto_place(curr_num + 1, next_board, next_moves)
+                next_sums = self.neighbour_sum(next_board, curr_sums, pos)
+                if curr_num + 1 in next_sums and next_sums[curr_num+1]:
+                    auto_place(curr_num + 1, next_board, next_sums, next_moves)
+                elif curr_num not in num_reached:
+                    best_moves.append(next_moves)
+                    num_reached.append(curr_num)
+        auto_place(num, self.board, self.neighbour_sum(self.board), [])
 
-        auto_place(num, board, [])
-        self.highest = max(num_reached)
-        self.solved_movesets = best_moves
+        if get_moves: 
+            self.solved_movesets = sorted(best_moves, key=len)
+        else: 
+            self.highest = max(num_reached)
+        self.solving = False
     
     def draw_board(self, screen):
         screen.fill(BOARD_COLOUR_ONE, (MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size))

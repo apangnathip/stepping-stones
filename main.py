@@ -66,9 +66,9 @@ def main():
                                 break
                             case "solve":
                                 if board.num > 1: 
+                                    board.solving = True
                                     ctrl_buttons[0].activated = False
-                                    threading.Thread(target=board.solve).start()
-                                    print(board.solved_movesets)
+                                    threading.Thread(target=board.solve, args=("True",)).start()
                                 break
 
                 if board.rect.collidepoint(mouse_pos):
@@ -78,6 +78,7 @@ def main():
 
         if board.solved_movesets: 
             movesets_gen = board.play_frame(board.solved_movesets)
+            # movesets_gen = board.play_all(board.solved_movesets[-1])
             board.solved_movesets = None
         if movesets_gen: 
             try:
