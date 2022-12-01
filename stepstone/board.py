@@ -1,9 +1,10 @@
 from pygame import gfxdraw
 from .constants import *
+from copy import deepcopy
 
 
 class Board:
-    def __init__(self, size=8):
+    def __init__(self, size=4):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
@@ -17,13 +18,14 @@ class Board:
         self.num = 1
         
         self.saved_states = [[[0] * self.size for _ in range(self.size)]]
-        self.highest = None
+        self.highest_num = None
         self.solving = False
         self.solved_movesets = None
 
     def traverse(self, mode):
         try:
             curr_state = self.saved_states.index(self.board)
+            print(curr_state, len(self.saved_states)-1)
         except ValueError:
             return
         if mode == "undo": 
@@ -32,9 +34,9 @@ class Board:
             operation = -1 
         if mode == "redo":
             if curr_state == len(self.saved_states) - 1: return
-            self.num += 1
+            if self.num > 1: self.num += 1
             operation = 1
-        self.board = self.saved_states[curr_state + operation]
+        self.board = deepcopy(self.saved_states)[curr_state+operation]
 
     def neighbour_sum(self, override_board=None, prev_sums=None, c_pos=None):
         if override_board:
@@ -114,33 +116,20 @@ class Board:
 
     def place_stone(self, pos, num=None, check_neighbours=True):
         if not self.board[pos[0]][pos[1]]:
+            curr_state = self.saved_states.index(self.board)
             if check_neighbours: sums = self.neighbour_sum()
             if self.num == 1:
                 self.board[pos[0]][pos[1]] = 1
             elif num:
                 self.board[pos[0]][pos[1]] = num
             elif not check_neighbours or self.num in sums and pos in sums[self.num]:
-                curr_state = self.saved_states.index(self.board)
-                if curr_state != len(self.saved_states) - 1:
-                    self.saved_states = [state[:] for state in self.saved_states][:curr_state + 1]
                 self.board[pos[0]][pos[1]] = self.num
                 self.num += 1
+            if curr_state != len(self.saved_states) - 1:
+                self.saved_states = [state[:] for state in self.saved_states][:curr_state+1]
+                self.saved_states = self.saved_states[:curr_state+1]
             self.saved_states.append([row[:] for row in self.board])
 
-    def play_frame(self, movesets):
-        saved = ()
-        for moveset in movesets:
-            if moveset != movesets[-1]: 
-                saved = ([row[:] for row in self.board], self.num)
-            else: saved = ()
-            for move in moveset:
-                yield move
-            if saved: self.board, self.num = saved
-
-    def play_all(self, moveset):
-        for move in moveset:
-            self.place_stone(move)
-  
     def solve(self, get_moves=False):
         best_moves = []
         num = self.num
@@ -156,7 +145,6 @@ class Board:
                 next_moves = moves[:]
                 next_moves.append(pos)
                 next_sums = self.neighbour_sum(next_board, curr_sums, pos)
-                # if not self.solving: return
                 if self.solving and curr_num + 1 in next_sums and next_sums[curr_num+1]:
                     auto_place(curr_num + 1, next_board, next_sums, next_moves)
                     continue
@@ -168,7 +156,7 @@ class Board:
         if get_moves: 
             self.solved_movesets = sorted(best_moves, key=len)
         else: 
-            self.highest = max(num_reached)
+            self.highest_num = max(num_reached)
         self.solving = False
     
     def draw_board(self, screen):
@@ -197,3 +185,16 @@ class Board:
                         number = self.stone_font.render(f"{self.board[row][col]}", True, (0, 0, 0))
                         screen.blit(number, (centre_pos[0] - number.get_width()/2, centre_pos[1] - number.get_height()/2.5))
     
+    def play_frame(self, movesets):
+        saved = ()
+        for moveset in movesets:
+            if moveset != movesets[-1]: 
+                saved = ([row[:] for row in self.board], self.num)
+            else: saved = ()
+            for move in moveset:
+                yield move
+            if saved: self.board, self.num = saved
+
+    def play_all(self, moveset):
+        for move in moveset:
+            self.place_stone(move)

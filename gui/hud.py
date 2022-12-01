@@ -78,8 +78,8 @@ class Hud():
 
         if board.solving == "loud":
             info = "Finding optimal solution..."
-        elif board.highest and board.num > board.highest: 
-            info = f"The highest possible stone of degree {board.highest} has been achieved!"
+        elif board.highest_num and board.num > board.highest_num: 
+            info = f"The highest possible stone of degree {board.highest_num} has been achieved!"
         else: 
             info = f"Placing {board.num}'s stone..."
         display_text(screen, info_bar, self.hud_margin*2, info, HUD_FONT)
