@@ -4,7 +4,7 @@ from copy import deepcopy
 
 
 class Board:
-    def __init__(self, size=4):
+    def __init__(self, size=8):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
@@ -16,7 +16,9 @@ class Board:
         self.stone_size = self.cell_size // 2 - self.stone_margin
         self.stone_font = pygame.font.SysFont("Consolas", self.cell_size // 2)
         self.num = 1
-        
+
+        self.playing = False
+        self.branch_num = 0
         self.saved_states = [[[0] * self.size for _ in range(self.size)]]
         self.highest_num = None
         self.solving = False
@@ -25,7 +27,6 @@ class Board:
     def traverse(self, mode):
         try:
             curr_state = self.saved_states.index(self.board)
-            print(curr_state, len(self.saved_states)-1)
         except ValueError:
             return
         if mode == "undo": 
@@ -41,8 +42,7 @@ class Board:
     def neighbour_sum(self, override_board=None, prev_sums=None, c_pos=None):
         if override_board:
             board = override_board
-        else:
-            board = self.board
+        else: board = self.board
 
         if prev_sums is None:
             sums = {}
@@ -136,6 +136,7 @@ class Board:
         num_reached = []
 
         def auto_place(curr_num, curr_board, curr_sums, moves):
+            self.branch_num += 1
             if curr_num not in curr_sums:
                 num_reached.append(1)
                 return
@@ -155,12 +156,12 @@ class Board:
 
         if get_moves: 
             self.solved_movesets = sorted(best_moves, key=len)
-        else: 
-            self.highest_num = max(num_reached)
+        else: self.highest_num = max(num_reached)
         self.solving = False
+        self.branch_num = 0
     
     def draw_board(self, screen):
-        screen.fill(BOARD_COLOUR_ONE, (MARGIN, MARGIN, self.rendered_size, MENU_HEIGHT + self.rendered_size))
+        screen.fill(BOARD_COLOUR_ONE, (MARGIN, MARGIN, self.rendered_size, self.rendered_size))
         for row in range(self.size):
             for col in range(row % 2, self.size, 2):
                 pygame.draw.rect(screen, BOARD_COLOUR_TWO, (
