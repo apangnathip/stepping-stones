@@ -57,7 +57,6 @@ class Button():
 
         pygame.draw.rect(screen, button_colour, self.rect)
 
-        if not self.draw_label: return
         label_surf = HUD_FONT.render(self.label, True, hud_font_colour)
         label_rect = label_surf.get_rect()
         screen.blit(label_surf, (self.rect.centerx - label_rect.width/2, self.rect.centery - label_rect.height/2, 0, 0))
@@ -65,23 +64,42 @@ class Button():
 class Slider(Button):
     def __init__(self, parent, label, align):
         super().__init__(parent, label, align)
-        self.draw_label = False
         self.slider_rect = parent.slider_rect
         self.rect.width /= 8
         self.rect.height -= 20
         self.min = self.slider_rect.left
         self.max = self.slider_rect.left + self.slider_rect.width
-        self.rect.center = (self.min + (self.max - self.min)/2, parent.slider_y_pos - parent.button_height/2)
         self.colour = (0, 0, 0)
         self.toggle = False
+        self.sizes = BOARD_SIZES
+        self.notch_spacing = self.slider_rect.width / (len(self.sizes)-1)
+        self.notches_pos = [self.slider_rect.left + self.notch_spacing*i for i in range(len(self.sizes))]
+        self.rect.center = (self.notches_pos[0], parent.slider_y_pos - parent.button_height/2)
+        self.notch_rect = pygame.Rect(0, self.rect.top + self.rect.height/4, self.slider_rect.height, self.rect.height/2)
 
+    def change_notch(self, mouse_pos, curr_size):
+        for i, notch_pos in enumerate(self.notches_pos):
+            if abs(mouse_pos - notch_pos) < self.notch_spacing / 2:
+                self.rect.centerx = notch_pos
+                if self.sizes[i] != curr_size: return self.sizes[i] 
+
+    def draw(self, screen):
+        if not self.activated: return
+        
+        if self.hover or self.toggle:
+            button_colour = self.act_colour
+        else: button_colour = self.colour
+
+        for notch_pos in self.notches_pos:
+            self.notch_rect.centerx = notch_pos
+            pygame.draw.rect(screen, (255, 255, 255), self.notch_rect)
+        pygame.draw.rect(screen, button_colour, self.rect)
 
 class Hud():
     def __init__(self, board):
         self.board_num = board.num
         self.width = SCREEN_SIZE[0] - (board.rendered_size + MARGIN * 2) - MARGIN
         self.height = SCREEN_SIZE[1] - MARGIN * 2
-        # self.height = board.rendered_size
         self.hud_margin = 15
 
         self.x_pos = board.rendered_size + MARGIN * 2

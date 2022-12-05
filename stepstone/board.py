@@ -4,7 +4,7 @@ from copy import deepcopy
 
 
 class Board:
-    def __init__(self, size=8):
+    def __init__(self, size=BOARD_SIZES[0]):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size

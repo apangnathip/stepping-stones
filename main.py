@@ -61,7 +61,7 @@ def main():
                                     threading.Thread(target=board.solve).start()
                             case "reset":
                                 board.solving = False
-                                board = Board()
+                                board = Board(board.size)
                                 ctrl_buttons[0].activated = True
                             case "undo":
                                 board.traverse("undo")
@@ -84,8 +84,9 @@ def main():
               
             slider_button = ctrl_buttons[5]
             if slider_button.toggle:
-                if mouse_pos[0] - slider_button.max < 0 and mouse_pos[0] - slider_button.min > 0: 
-                    slider_button.rect.centerx = mouse_pos[0]
+                if size := slider_button.change_notch(mouse_pos[0], board.size):
+                    board.solving = False
+                    board = Board(size)
                 if not pygame.mouse.get_pressed()[0]: slider_button.toggle = False
 
         if board.solved_movesets: 
