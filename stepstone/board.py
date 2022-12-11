@@ -4,7 +4,7 @@ from copy import deepcopy
 
 
 class Board:
-    def __init__(self, size=BOARD_SIZES[0]):
+    def __init__(self, size=BOARD_SIZES[2]):
         self.size = size
         self.cell_size = (SCREEN_SIZE[1] - MENU_HEIGHT - MARGIN * 2) // size
         self.rendered_size = size * self.cell_size
@@ -20,10 +20,12 @@ class Board:
         self.playing = False
         self.branch_num = 0
         self.saved_states = [[[0] * self.size for _ in range(self.size)]]
+        self.num_reached = []
         self.highest_num = None
-        self.solving = False
+        self.solving = False # 3 Modes: loud, shows solving; quiet, solve in background; False
         self.solved_movesets = None
 
+    # Undo/Redo functions
     def traverse(self, mode):
         try:
             curr_state = self.saved_states.index(self.board)
@@ -39,12 +41,13 @@ class Board:
             operation = 1
         self.board = deepcopy(self.saved_states)[curr_state+operation]
 
+    # Find the sums of each cells by their neighbours
     def neighbour_sum(self, override_board=None, prev_sums=None, c_pos=None):
         if override_board:
             board = override_board
         else: board = self.board
 
-        if prev_sums is None:
+        if prev_sums is None: # Only triggers on initial one's stone configuration
             sums = {}
             for row in range(self.size):
                 for col in range(self.size):
@@ -91,7 +94,7 @@ class Board:
                     break            
         return sums
 
-    # DEBUGGING PURPOSES
+    # DEBUGGING PURPOSES; Prints the sum by neighbours of the current board
     def draw_sum_board(self, sums):
         for key, value in sums.items():
             for pos in value:
@@ -114,6 +117,7 @@ class Board:
             print()
         print()
 
+    # Places stone if their placement is legal
     def place_stone(self, pos, num=None, check_neighbours=True):
         if not self.board[pos[0]][pos[1]]:
             curr_state = self.saved_states.index(self.board)
@@ -130,15 +134,17 @@ class Board:
                 self.saved_states = self.saved_states[:curr_state+1]
             self.saved_states.append([row[:] for row in self.board])
 
+    # Solve the board based on current board configuration
     def solve(self, get_moves=False):
         best_moves = []
         num = self.num
-        num_reached = []
+        state = self.solving
+        self.num_reached = []
 
         def auto_place(curr_num, curr_board, curr_sums, moves):
-            self.branch_num += 1
+            if self.solving != state: return
             if curr_num not in curr_sums:
-                num_reached.append(1)
+                self.num_reached.append(1)
                 return
             for pos in curr_sums[curr_num]:
                 next_board = [row[:] for row in curr_board]
@@ -146,17 +152,21 @@ class Board:
                 next_moves = moves[:]
                 next_moves.append(pos)
                 next_sums = self.neighbour_sum(next_board, curr_sums, pos)
-                if self.solving and curr_num + 1 in next_sums and next_sums[curr_num+1]:
+                if curr_num + 1 in next_sums and next_sums[curr_num+1]:
                     auto_place(curr_num + 1, next_board, next_sums, next_moves)
                     continue
-                if curr_num not in num_reached:
+                if not self.num_reached or curr_num not in self.num_reached and curr_num > self.num_reached[-1]:
                     best_moves.append(next_moves)
-                    num_reached.append(curr_num)
+                    self.num_reached.append(curr_num)
+                self.branch_num += 1
         auto_place(num, self.board, self.neighbour_sum(self.board), [])
 
+        if self.solving != state: return
         if get_moves: 
             self.solved_movesets = sorted(best_moves, key=len)
-        else: self.highest_num = max(num_reached)
+        if not get_moves or num == 2: 
+            self.highest_num = self.num_reached[-1]
+
         self.solving = False
         self.branch_num = 0
     
@@ -168,7 +178,7 @@ class Board:
                     col * self.cell_size + MARGIN, row * self.cell_size + MENU_SIZE[1] + MARGIN, self.cell_size,
                     self.cell_size))
 
-    def draw(self, screen):
+    def draw_stone(self, screen):
         self.draw_board(screen)
         for row in range(self.size):
             for col in range(self.size):
@@ -179,13 +189,15 @@ class Board:
                     if self.board[row][col] == 1:
                         gfxdraw.aacircle(screen, centre_pos[0], centre_pos[1], self.stone_size, ONES_STONE_COLOUR)
                         gfxdraw.filled_circle(screen, centre_pos[0], centre_pos[1], self.stone_size, ONES_STONE_COLOUR)
-                    else:
-                        gfxdraw.aacircle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
-                        gfxdraw.filled_circle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
+                        continue
+                    
+                    gfxdraw.aacircle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
+                    gfxdraw.filled_circle(screen, centre_pos[0], centre_pos[1], self.stone_size, STONE_COLOUR)
 
-                        number = self.stone_font.render(f"{self.board[row][col]}", True, (0, 0, 0))
-                        screen.blit(number, (centre_pos[0] - number.get_width()/2, centre_pos[1] - number.get_height()/2.5))
+                    number = self.stone_font.render(f"{self.board[row][col]}", True, (0, 0, 0))
+                    screen.blit(number, (centre_pos[0] - number.get_width()/2, centre_pos[1] - number.get_height()/2.5))
     
+    # Return each board configuration from a list of movesets every program loop
     def play_frame(self, movesets):
         saved = ()
         for moveset in movesets:
@@ -196,6 +208,3 @@ class Board:
                 yield move
             if saved: self.board, self.num = saved
 
-    def play_all(self, moveset):
-        for move in moveset:
-            self.place_stone(move)

@@ -1,26 +1,34 @@
 import pygame
 from stepstone.constants import *
 
-
-def display_text(screen, bound, margin, text, font, colour=(255,255,255)):
+# Text wrapping
+def display_text(screen, bound, margin, text, font, center=True, colour=HUD_FONT_COLOUR, highlight=None):
     text_surf = pygame.Surface(bound.size, pygame.SRCALPHA, 32).convert_alpha()
     words = text.split(" ")
     space_width, space_height = font.size(" ")
-    pos = (margin, bound.height/2 - space_height/2)
+    if center:
+        pos = margin, bound.height/2 - space_height/2
+    else:
+        pos = margin, margin
     x, y = pos
     adjusted_height = 0
+    curr_colour = colour
     for word in words:
-        word_surf = font.render(word, True, colour)
+        if highlight:
+            if word == words[highlight]:
+                curr_colour = BOARD_COLOUR_TWO
+            else: curr_colour = colour
+        word_surf = font.render(word, True, curr_colour)
         word_width, word_height = word_surf.get_size()
         if x + word_width >= bound.width - margin:
             x = pos[0]
             y += word_height
-            adjusted_height -= word_height/2
+            if center: adjusted_height -= word_height/2
         text_surf.blit(word_surf, (x, y))
         x += word_width + space_width
     screen.blit(text_surf, (bound.left, bound.top + adjusted_height))
     
-# TODO SLIDER
+    
 class Button():
     def __init__(self, parent, label, align, relative_pos=0):
         self.label = label
@@ -69,13 +77,14 @@ class Slider(Button):
         self.rect.height -= 20
         self.min = self.slider_rect.left
         self.max = self.slider_rect.left + self.slider_rect.width
-        self.colour = (0, 0, 0)
+        self.colour = (200, 200, 200)
         self.toggle = False
         self.sizes = BOARD_SIZES
         self.notch_spacing = self.slider_rect.width / (len(self.sizes)-1)
         self.notches_pos = [self.slider_rect.left + self.notch_spacing*i for i in range(len(self.sizes))]
         self.rect.center = (self.notches_pos[0], parent.slider_y_pos - parent.button_height/2)
         self.notch_rect = pygame.Rect(0, self.rect.top + self.rect.height/4, self.slider_rect.height, self.rect.height/2)
+        self.rect.centerx = self.notches_pos[2]
 
     def change_notch(self, mouse_pos, curr_size):
         for i, notch_pos in enumerate(self.notches_pos):
@@ -92,7 +101,7 @@ class Slider(Button):
 
         for notch_pos in self.notches_pos:
             self.notch_rect.centerx = notch_pos
-            pygame.draw.rect(screen, (255, 255, 255), self.notch_rect)
+            pygame.draw.rect(screen, HUD_FONT_COLOUR, self.notch_rect)
         pygame.draw.rect(screen, button_colour, self.rect)
 
 class Hud():
@@ -115,20 +124,24 @@ class Hud():
     def draw(self, screen, board):
         pygame.draw.rect(screen, HUD_COLOUR, (self.x_pos, MARGIN, self.width, self.height))
   
-        info_text = pygame.Rect(self.x_pos, MARGIN, self.width, CTRLBAR_SIZE)
-        pygame.draw.rect(screen, CTRLBAR_COLOUR, info_text)
+        state_text = pygame.Rect(self.x_pos, MARGIN, self.width, CTRLBAR_SIZE)
+        pygame.draw.rect(screen, CTRLBAR_COLOUR, state_text)
         if board.solving == "loud":
-            info = f"Finding optimal solution, at branch #{board.branch_num}"
+            state = f"Finding optimal solution, at branch #{board.branch_num}"
         elif board.highest_num and board.num > board.highest_num: 
-            info = f"The highest possible stone of degree {board.highest_num} has been achieved!"
+            state = f"The highest possible stone of degree {board.highest_num} has been achieved!"
         else: 
-            info = f"Placing {board.num}'s stone..."
-        display_text(screen, info_text, self.hud_margin*2, info, HUD_FONT)
+            state = f"Placing {board.num}'s stone..."
+        display_text(screen, state_text, self.hud_margin*2, state, HUD_FONT)
+
+        if board.num_reached and board.solving == "loud":
+            info_text = pygame.Rect(self.x_pos, CTRLBAR_SIZE + MARGIN, self.width, self.height)
+            info = "Number reached: " + " ".join([str(num) for num in sorted(board.num_reached)])
+            display_text(screen,info_text, self.hud_margin*2, info, HUD_FONT, center=False, highlight=-1)
 
         size_rect = pygame.Rect(self.x_pos, self.ctrl_y_pos - CTRLBAR_SIZE/1.5, self.width, CTRLBAR_SIZE/1.5)
-        pygame.draw.rect(screen, HUD_COLOUR_SEC, size_rect)
+        pygame.draw.rect(screen, HUD_COLOUR, size_rect)
         display_text(screen, size_rect, self.hud_margin*2, "Size :", HUD_FONT)
-        # slider_rect = pygame.Rect(self.x_pos + self.hud_margin*8, self.ctrl_y_pos - size_rect.height/2 - self.slider_size/2, self.width/1.5, self.slider_size)
         pygame.draw.rect(screen, HUD_FONT_COLOUR, self.slider_rect)
         
         pygame.draw.rect(screen, CTRLBAR_COLOUR, (self.x_pos, self.ctrl_y_pos, self.width, CTRLBAR_SIZE))
