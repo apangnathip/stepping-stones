@@ -1,4 +1,4 @@
-# stepping-stones
+# Stepping Stones Puzzle
 Mathematical game based on Numberphile's [Stones on an Infinite Chessboard](https://www.youtube.com/watch?v=m4Uth-EaTZ8).
 It is defined as the following:
 
